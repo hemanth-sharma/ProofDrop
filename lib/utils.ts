@@ -11,3 +11,10 @@ export function formatDate(date: string | Date) {
     timeStyle: "short",
   })
 }
+
+export function formatTime(date: string | Date) {
+  return new Date(date).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  })
+}
