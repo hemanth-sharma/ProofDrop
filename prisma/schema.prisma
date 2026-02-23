@@ -48,3 +48,59 @@ model Delivery {
   status           String   @default("pending")
   createdAt        DateTime @default(now())
 }
+
+
+model Profile {
+  id            String   @id @db.Uuid
+  email         String?
+  business_name String?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  deliveries    Delivery[]
+  customers     Customer[]
+  drivers       Driver[]
+}
+
+model Customer {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String   @db.Uuid
+  name       String
+  phone      String?
+  email      String?
+  address    String?
+  notes      String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user       Profile  @relation(fields: [user_id], references: [id])
+  deliveries Delivery[]
+}
+
+model Delivery {
+  id                String   @id @default(uuid()) @db.Uuid
+  user_id           String   @db.Uuid
+  customer_id       String?  @db.Uuid
+  customer_name     String
+  customer_phone    String
+  customer_email    String?
+  delivery_notes    String?
+  delivery_address  String?
+  driver_phone      String?
+  driver_link_token String
+  status            String?  @default("pending")
+  created_at        DateTime @default(now())
+
+  user      Profile   @relation(fields: [user_id], references: [id])
+  customer  Customer? @relation(fields: [customer_id], references: [id])
+}
+
+model Driver {
+  id         String   @id @default(uuid()) @db.Uuid
+  user_id    String   @db.Uuid
+  name       String
+  phone      String
+  created_at DateTime @default(now())
+
+  user       Profile  @relation(fields: [user_id], references: [id])
+}

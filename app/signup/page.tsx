@@ -26,17 +26,22 @@ export default function SignUpPage() {
     setLoading(true)
     setError(null)
     const supabase = createClient()
+    // const { data, error: signUpError } = await supabase.auth.signUp({
+    //   email,
+    //   password,
+    //   options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    // })
+    // // disabling email verification for MVP
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
     })
     if (signUpError) {
       setError(signUpError.message)
       setLoading(false)
       return
     }
-    if (data.user) {
+    if (data.session && data.user) {
       await supabase.from("profiles").upsert({
         id: data.user.id,
         email: data.user.email,

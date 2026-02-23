@@ -32,6 +32,7 @@ export default function LoginPage() {
       return
     }
     window.location.href = "/dashboard"
+    // window.location.assign("/dashboard")
   }
 
   async function signInWithGoogle() {

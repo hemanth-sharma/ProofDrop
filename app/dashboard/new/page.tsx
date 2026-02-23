@@ -1,15 +1,17 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { MessageCircle, Send, User, Phone, Mail, CheckCircle, Shield } from "lucide-react"
+import { MessageCircle, Send, User, Mail, CheckCircle, Shield, Users, Plus } from "lucide-react"
 import { Logo } from "@/components/landing/Logo"
 
 export default function NewDeliveryPage() {
   const router = useRouter()
+  const [drivers, setDrivers] = useState<any[]>([])
+  const [selectedDriverId, setSelectedDriverId] = useState<string>("")
   const [customerName, setCustomerName] = useState("")
   const [countryCode, setCountryCode] = useState("+1")
   const [customerPhone, setCustomerPhone] = useState("")
@@ -18,11 +20,23 @@ export default function NewDeliveryPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  useEffect(() => {
+    fetch("/api/drivers")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setDrivers(data)
+      })
+      .catch(() => {
+        // ignore
+      })
+  }, [])
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
     const fullPhone = `${countryCode}${customerPhone.replace(/\D/g, "")}`
+    const selectedDriver = drivers.find((d) => d.id === selectedDriverId)
     const res = await fetch("/api/deliveries", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -31,6 +45,8 @@ export default function NewDeliveryPage() {
         customer_phone: fullPhone,
         customer_email: customerEmail || undefined,
         delivery_notes: deliveryNotes || undefined,
+        driver_id: selectedDriver?.id,
+        driver_phone: selectedDriver?.phone,
       }),
     })
     const data = await res.json().catch(() => ({}))
@@ -83,6 +99,39 @@ export default function NewDeliveryPage() {
                     className="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-4 text-sm focus:border-[#1e40af] focus:outline-none focus:ring-1 focus:ring-[#1e40af]"
                     required
                   />
+                </div>
+              </div>
+
+              {/* Driver selection */}
+              <div className="space-y-2">
+                <Label htmlFor="driver">
+                  Driver{" "}
+                  <span className="text-slate-400">(Optional)</span>
+                </Label>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <div className="relative flex-1">
+                    <Users className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <select
+                      id="driver"
+                      value={selectedDriverId}
+                      onChange={(e) => setSelectedDriverId(e.target.value)}
+                      className="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2.5 pl-10 pr-8 text-sm focus:border-[#1e40af] focus:outline-none focus:ring-1 focus:ring-[#1e40af]"
+                    >
+                      <option value="">Select driver (optional)</option>
+                      {drivers.map((driver) => (
+                        <option key={driver.id} value={driver.id}>
+                          {driver.full_name} — {driver.phone}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <Link
+                    href="/dashboard/drivers/new"
+                    className="inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add Driver
+                  </Link>
                 </div>
               </div>
 

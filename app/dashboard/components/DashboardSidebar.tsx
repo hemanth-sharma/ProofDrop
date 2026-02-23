@@ -8,6 +8,7 @@ import { Truck, Users, BarChart3, Settings, User } from "lucide-react"
 
 const navItems = [
   { href: "/dashboard", label: "Deliveries", icon: Truck },
+  { href: "/dashboard/drivers", label: "Drivers", icon: Users },
   { href: "/dashboard/customers", label: "Customers", icon: Users },
   { href: "/dashboard/reports", label: "Reports", icon: BarChart3 },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
