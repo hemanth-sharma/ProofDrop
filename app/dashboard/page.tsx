@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { Button } from "@/components/ui/button"
 import { formatTime } from "@/lib/utils"
 import { Search, Filter, ChevronRight, User, Plus } from "lucide-react"
+import { DeliveriesTable } from "./components/DeliveriesTable" // TO be fixed yet.
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -119,7 +120,7 @@ export default async function DashboardPage() {
                   >
                     <td className="px-4 py-3">
                       <Link
-                        href={d.status === "completed" ? `/proof/${d.id}` : "#"}
+                        href={d.status === "completed" ? `/proof/${d.id}` : `/dashboard/deliveries/${d.id}`}
                         className="flex items-center gap-3"
                       >
                         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-600">
@@ -165,7 +166,7 @@ export default async function DashboardPage() {
                     </td>
                     <td className="px-4 py-3">
                       <Link
-                        href={d.status === "completed" ? `/proof/${d.id}` : "#"}
+                        href={d.status === "completed" ? `/proof/${d.id}` : `/dashboard/deliveries/${d.id}`}
                         className="inline-flex text-slate-400 hover:text-slate-600"
                       >
                         <ChevronRight className="h-5 w-5" />
@@ -179,10 +180,17 @@ export default async function DashboardPage() {
         </div>
         {deliveries.length > 0 && (
           <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm text-slate-500">
-            <p>
-              Showing 1-{Math.min(15, deliveries.length)} of {deliveries.length}{" "}
-              deliveries
-            </p>
+            <div className="flex items-center gap-4">
+              <p>
+                Showing 1-{Math.min(15, deliveries.length)} of {deliveries.length} deliveries
+              </p>
+              <Link
+                href="/dashboard/deliveries"
+                className="text-[#1e40af] font-medium hover:underline"
+              >
+                View All
+              </Link>
+            </div>
             <div className="flex gap-1">
               <button
                 type="button"
