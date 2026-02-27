@@ -1,3 +1,5 @@
+// Client side method // Not using for now.
+
 "use client"
 
 import { useState, useMemo } from "react"
