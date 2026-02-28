@@ -1,106 +1,136 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  // directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
-model User {
-  id           String     @id @default(uuid())
-  email        String     @unique
-  passwordHash String
-  businessName String
-  businessLogo String?
-  phone        String?
-  createdAt    DateTime   @default(now())
-  deliveries   Delivery[]
-}
-
-model Delivery {
-  id               String   @id @default(uuid())
-  userId           String
-  user             User     @relation(fields: [userId], references: [id])
-
-  customerName     String
-  customerPhone    String
-  customerEmail    String?
-
-  deliveryNotes    String?
-  deliveryAddress  String?
-
-  driverToken      String   @unique
-  driverPhone      String?
-
-  photoUrl         String?
-  signatureData    String?
-  completedAt      DateTime?
-
-  status           String   @default("pending")
-  createdAt        DateTime @default(now())
-}
-
+//////////////////////////////////////////////////////
+// PROFILES (linked to Supabase auth.users)
+//////////////////////////////////////////////////////
 
 model Profile {
-  id            String   @id @db.Uuid
-  email         String?
-  business_name String?
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  id               String    @id @db.Uuid
+  email            String?
+  business_name    String    @default("")
+  business_logo_url String?
+  phone            String?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
 
-  deliveries    Delivery[]
-  customers     Customer[]
-  drivers       Driver[]
+  deliveries       Delivery[]
+  customers        Customer[]
+  drivers          Driver[]
+  feedback         Feedback[]
 }
 
+//////////////////////////////////////////////////////
+// DELIVERIES
+//////////////////////////////////////////////////////
+
+model Delivery {
+  id                String     @id @default(uuid()) @db.Uuid
+  user_id           String     @db.Uuid
+  customer_id       String?    @db.Uuid
+  driver_id         String?    @db.Uuid
+
+  customer_name     String
+  customer_phone    String
+  customer_email    String?
+
+  delivery_notes    String?
+  delivery_address  String?
+
+  driver_link_token String     @unique
+  driver_phone      String?
+
+  photo_url         String?
+  signature_data    String?
+  completed_at      DateTime?
+
+  status            String     @default("pending")
+  created_at        DateTime   @default(now())
+
+  user              Profile    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  customer          Customer?  @relation(fields: [customer_id], references: [id], onDelete: SetNull)
+  driver            Driver?    @relation(fields: [driver_id], references: [id])
+  notifications     Notification[]
+
+  @@index([user_id])
+  @@index([driver_link_token])
+  @@index([status])
+}
+
+//////////////////////////////////////////////////////
+// DRIVERS
+//////////////////////////////////////////////////////
+
+model Driver {
+  id          String    @id @default(uuid()) @db.Uuid
+  user_id     String    @db.Uuid
+  full_name   String
+  email       String?
+  phone       String
+  vehicle_type String?
+  status      String    @default("active")
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  user        Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  deliveries  Delivery[]
+
+  @@index([user_id])
+}
+
+//////////////////////////////////////////////////////
+// CUSTOMERS
+//////////////////////////////////////////////////////
+
 model Customer {
-  id         String   @id @default(uuid()) @db.Uuid
-  user_id    String   @db.Uuid
+  id         String    @id @default(uuid()) @db.Uuid
+  user_id    String    @db.Uuid
   name       String
   phone      String?
   email      String?
   address    String?
   notes      String?
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
 
-  user       Profile  @relation(fields: [user_id], references: [id])
+  user       Profile   @relation(fields: [user_id], references: [id], onDelete: Cascade)
   deliveries Delivery[]
+
+  @@unique([user_id, phone])
 }
 
-model Delivery {
-  id                String   @id @default(uuid()) @db.Uuid
-  user_id           String   @db.Uuid
-  customer_id       String?  @db.Uuid
-  customer_name     String
-  customer_phone    String
-  customer_email    String?
-  delivery_notes    String?
-  delivery_address  String?
-  driver_phone      String?
-  driver_link_token String
-  status            String?  @default("pending")
-  created_at        DateTime @default(now())
+//////////////////////////////////////////////////////
+// NOTIFICATIONS
+//////////////////////////////////////////////////////
 
-  user      Profile   @relation(fields: [user_id], references: [id])
-  customer  Customer? @relation(fields: [customer_id], references: [id])
+model Notification {
+  id          String     @id @default(uuid()) @db.Uuid
+  delivery_id String?    @db.Uuid
+  type        String
+  recipient   String?
+  sent_at     DateTime   @default(now())
+  status      String?
+
+  delivery    Delivery?  @relation(fields: [delivery_id], references: [id], onDelete: Cascade)
 }
 
-model Driver {
-  id         String   @id @default(uuid()) @db.Uuid
-  user_id    String   @db.Uuid
-  name       String
-  phone      String
-  created_at DateTime @default(now())
+//////////////////////////////////////////////////////
+// FEEDBACK
+//////////////////////////////////////////////////////
 
-  user       Profile  @relation(fields: [user_id], references: [id])
+model Feedback {
+  id         String    @id @default(uuid()) @db.Uuid
+  user_id    String?   @db.Uuid
+  email      String
+  phone      String?
+  feedback   String
+  created_at DateTime  @default(now())
+
+  user       Profile?  @relation(fields: [user_id], references: [id], onDelete: SetNull)
 }
