@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { useState, useEffect } from "react"
 import { Logo } from "@/components/landing/Logo"
 import { SignOutButton } from "./SignOutButton"
-import { Truck, Users, BarChart3, Settings, User } from "lucide-react"
+import { Truck, Users, BarChart3, Settings, User, MessageSquare, Menu, X, ChevronLeft } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 
@@ -14,32 +14,40 @@ const navItems = [
   { href: "/dashboard/drivers", label: "Drivers", icon: Users },
   { href: "/dashboard/customers", label: "Customers", icon: Users },
   { href: "/dashboard/reports", label: "Reports", icon: BarChart3 },
+  { href: "/dashboard/feedback", label: "Feedback", icon: MessageSquare },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ]
 
 export function DashboardSidebar() {
   const pathname = usePathname()
   const router = useRouter()
-  
   const [businessName, setBusinessName] = useState("")
-  const [loading, setLoading] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push("/login"); return }
       const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-      if (data) {
-        setBusinessName(data.business_name || "")
-      }
-      setLoading(false)
+      if (data) setBusinessName(data.business_name || "")
     })
   }, [])
 
-  return (
-    <aside className="flex w-56 flex-col border-r border-slate-200 bg-white">
-      <div className="flex h-16 items-center px-4">
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
+
+  const SidebarContent = () => (
+    <>
+      <div className="flex h-16 items-center justify-between px-4 border-b border-slate-100">
         <Logo className="text-slate-900" />
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
       <nav className="flex-1 space-y-0.5 px-3 py-4">
         {navItems.map((item) => {
@@ -70,14 +78,49 @@ export function DashboardSidebar() {
             <User className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-slate-900">
-              {businessName}
-            </p>
+            <p className="truncate text-sm font-medium text-slate-900">{businessName || "My Business"}</p>
             <p className="truncate text-xs text-slate-500">Owner</p>
           </div>
           <SignOutButton iconOnly />
         </div>
       </div>
-    </aside>
+    </>
+  )
+
+  return (
+    <>
+      {/* Mobile header bar */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm">
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="p-2 rounded-lg text-slate-600 hover:bg-slate-100"
+          aria-label="Open menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <Logo className="text-slate-900" />
+        <div className="w-9" /> {/* spacer for centering */}
+      </div>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="lg:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Mobile drawer */}
+      <div className={`lg:hidden fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-200 bg-white shadow-xl transition-transform duration-300 ${
+        mobileOpen ? "translate-x-0" : "-translate-x-full"
+      }`}>
+        <SidebarContent />
+      </div>
+
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:flex w-56 flex-col border-r border-slate-200 bg-white shrink-0">
+        <SidebarContent />
+      </aside>
+    </>
   )
 }

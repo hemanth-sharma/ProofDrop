@@ -8,28 +8,42 @@ export async function POST(
 ) {
   const { token } = await params
   const body = await req.json()
-  const { photo_url, signature_data } = body
+  const { photo_url, signature_data, lat, lng } = body
+
+  // signature_data now just needs to be present (can be "driver-confirmed" for photo-only)
   if (!signature_data) {
     return NextResponse.json(
       { error: "signature_data required" },
       { status: 400 }
     )
   }
+
   const supabase = createAdminClient()
+
+  const updateData: any = {
+    photo_url: photo_url || null,
+    signature_data,
+    completed_at: new Date().toISOString(),
+    status: "completed",
+  }
+
+  // Store GPS if provided
+  if (lat && lng) {
+    updateData.delivery_lat = lat
+    updateData.delivery_lng = lng
+  }
+
   const { data: delivery, error } = await supabase
     .from("deliveries")
-    .update({
-      photo_url: photo_url || null,
-      signature_data,
-      completed_at: new Date().toISOString(),
-      status: "completed",
-    })
+    .update(updateData)
     .eq("driver_link_token", token)
     .select()
     .single()
+
   if (error || !delivery) {
     return NextResponse.json({ error: "Update failed" }, { status: 500 })
   }
+
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
   const proofLink = `${baseUrl}/proof/${delivery.id}`
   const admin = createAdminClient()
@@ -38,14 +52,18 @@ export async function POST(
     .select("business_name")
     .eq("id", delivery.user_id)
     .single()
+
   const businessName = profile?.business_name || "Your merchant"
+
   const smsErr = await sendCustomerSMS({
     business_name: businessName,
     customer_phone: delivery.customer_phone,
     proof_link: proofLink,
   })
+
   if (smsErr) {
     console.error("Customer SMS failed:", smsErr)
   }
+
   return NextResponse.json(delivery)
 }
