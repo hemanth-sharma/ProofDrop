@@ -2,9 +2,12 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useState, useEffect } from "react"
 import { Logo } from "@/components/landing/Logo"
 import { SignOutButton } from "./SignOutButton"
 import { Truck, Users, BarChart3, Settings, User } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
+import { useRouter } from "next/navigation"
 
 const navItems = [
   { href: "/dashboard", label: "Deliveries", icon: Truck },
@@ -16,6 +19,22 @@ const navItems = [
 
 export function DashboardSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+  
+  const [businessName, setBusinessName] = useState("")
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) { router.push("/login"); return }
+      const { data } = await supabase.from("profiles").select("*").eq("id", user.id).single()
+      if (data) {
+        setBusinessName(data.business_name || "")
+      }
+      setLoading(false)
+    })
+  }, [])
 
   return (
     <aside className="flex w-56 flex-col border-r border-slate-200 bg-white">
@@ -52,7 +71,7 @@ export function DashboardSidebar() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-slate-900">
-              Alex Rivers
+              {businessName}
             </p>
             <p className="truncate text-xs text-slate-500">Owner</p>
           </div>

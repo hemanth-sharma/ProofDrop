@@ -1,33 +1,98 @@
-import Link from "next/link"
-import { createClient } from "@/lib/supabase/server"
-import { Button } from "@/components/ui/button"
-import { formatTime } from "@/lib/utils"
-import { Search, Filter, ChevronRight, User, Plus } from "lucide-react"
-import { DeliveriesTable } from "./components/DeliveriesTable" // TO be fixed yet.
+"use client"
 
-export default async function DashboardPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const { data: deliveriesData } = user
-    ? await supabase
-        .from("deliveries")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-    : { data: null }
-  const deliveries = deliveriesData ?? []
+import { useEffect, useState, useMemo, useRef } from "react"
+import Link from "next/link"
+import { formatTime } from "@/lib/utils"
+import {
+  Search, Filter, ChevronRight, User, Plus, X,
+  CheckCircle, Clock, Package, TrendingUp, Zap
+} from "lucide-react"
+
+interface Delivery {
+  id: string
+  customer_name: string
+  customer_phone: string
+  status: string
+  created_at: string
+  driver_phone?: string
+  driver_id?: string
+  delivery_address?: string
+}
+
+export default function DashboardPage() {
+  const [deliveries, setDeliveries] = useState<Delivery[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState("")
+  const [filterStatus, setFilterStatus] = useState<string>("pending")
+  const [filterDriver, setFilterDriver] = useState("")
+  const [filterDateFrom, setFilterDateFrom] = useState("")
+  const [filterDateTo, setFilterDateTo] = useState("")
+  const [showFilter, setShowFilter] = useState(false)
+  const filterRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    fetch("/api/deliveries")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          // Sort by created_at descending (newest first)
+          const sorted = [...data].sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          )
+          setDeliveries(sorted)
+        }
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
+  // Close filter popup on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+        setShowFilter(false)
+      }
+    }
+    if (showFilter) document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [showFilter])
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase()
+    return deliveries.filter((d) => {
+      const matchSearch =
+        !q ||
+        d.customer_name.toLowerCase().includes(q) ||
+        d.id.toLowerCase().includes(q) ||
+        (d.customer_phone?.toLowerCase().includes(q) ?? false) ||
+        (d.driver_phone?.toLowerCase().includes(q) ?? false)
+
+      const matchStatus = !filterStatus || d.status === filterStatus
+      const matchDriver = !filterDriver || (d.driver_phone?.toLowerCase().includes(filterDriver.toLowerCase()) ?? false)
+      const matchFrom = !filterDateFrom || new Date(d.created_at) >= new Date(filterDateFrom)
+      const matchTo = !filterDateTo || new Date(d.created_at) <= new Date(filterDateTo + "T23:59:59")
+
+      return matchSearch && matchStatus && matchDriver && matchFrom && matchTo
+    })
+  }, [deliveries, search, filterStatus, filterDriver, filterDateFrom, filterDateTo])
 
   const completedCount = deliveries.filter((d) => d.status === "completed").length
   const pendingCount = deliveries.filter((d) => d.status === "pending").length
 
+  const activeFilters = [filterStatus, filterDriver, filterDateFrom, filterDateTo].filter(Boolean).length
+
+  function clearFilters() {
+    setFilterStatus("pending")
+    setFilterDriver("")
+    setFilterDateFrom("")
+    setFilterDateTo("")
+  }
+
   return (
-    <div className="p-6 lg:p-8">
+    <div className="p-6 lg:p-8 bg-slate-50 min-h-full">
       {/* Page header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Today&apos;s Deliveries
-          </h1>
+          <h1 className="text-2xl font-bold text-slate-900">Today's Deliveries</h1>
           <div className="mt-1 flex items-center gap-4 text-sm">
             <span className="flex items-center gap-1.5 text-green-600">
               <span className="h-2 w-2 rounded-full bg-green-500" />
@@ -39,135 +104,281 @@ export default async function DashboardPage() {
             </span>
           </div>
         </div>
-        <Button asChild className="bg-[#1e40af] hover:bg-[#1d4ed8]">
-          <Link href="/dashboard/new" className="inline-flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            New Delivery
-          </Link>
-        </Button>
+        <Link
+          href="/dashboard/new"
+          className="inline-flex items-center gap-2 rounded-lg bg-[#1e40af] px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#1d4ed8] transition-colors"
+        >
+          <Plus className="h-4 w-4" />
+          New Delivery
+        </Link>
       </div>
 
       {/* KPI cards */}
-      <div className="mt-8 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">
-            Avg. Completion Time
-          </p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">54 sec</p>
+      <div className="mt-6 grid gap-4 sm:grid-cols-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50">
+              <Zap className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Avg. Completion</p>
+              <p className="text-xl font-bold text-slate-900">54 sec</p>
+            </div>
+          </div>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Success Rate</p>
-          <p className="mt-1 text-2xl font-bold text-green-600">99.2%</p>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50">
+              <TrendingUp className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Success Rate</p>
+              <p className="text-xl font-bold text-green-600">99.2%</p>
+            </div>
+          </div>
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm font-medium text-slate-500">Total Volume</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">
-            {deliveries.length}
-          </p>
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-50">
+              <Package className="h-5 w-5 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-sm text-slate-500">Total Volume</p>
+              <p className="text-xl font-bold text-slate-900">{deliveries.length}</p>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Table card */}
-      <div className="mt-8 rounded-xl border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative flex-1">
+      <div className="mt-6 rounded-xl border border-slate-200 bg-white shadow-sm">
+        {/* Search & Filter bar */}
+        <div className="flex flex-col gap-3 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
-              type="search"
-              placeholder="Search customer or ID..."
+              type="text"
+              placeholder="Search customer, ID, phone..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-4 text-sm placeholder:text-slate-400 focus:border-[#1e40af] focus:outline-none focus:ring-1 focus:ring-[#1e40af]"
             />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
-          <Button variant="outline" size="sm" className="inline-flex items-center gap-2">
-            <Filter className="h-4 w-4" />
-            Filter
-          </Button>
+
+          <div className="flex items-center gap-2">
+            {/* Quick status pills */}
+            <div className="hidden sm:flex items-center gap-1">
+              {["", "pending", "completed", "failed"].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setFilterStatus(s)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    filterStatus === s
+                      ? s === "pending"
+                        ? "bg-amber-100 text-amber-700"
+                        : s === "completed"
+                        ? "bg-green-100 text-green-700"
+                        : s === "failed"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-[#1e40af] text-white"
+                      : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                  }`}
+                >
+                  {s === "" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            {/* Filter popup */}
+            <div className="relative" ref={filterRef}>
+              <button
+                onClick={() => setShowFilter(!showFilter)}
+                className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                  activeFilters > 0
+                    ? "border-[#1e40af] bg-[#1e40af]/10 text-[#1e40af]"
+                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <Filter className="h-4 w-4" />
+                Filter
+                {activeFilters > 0 && (
+                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#1e40af] text-[10px] font-bold text-white">
+                    {activeFilters}
+                  </span>
+                )}
+              </button>
+
+              {showFilter && (
+                <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-slate-900">Filters</h3>
+                    <button
+                      onClick={clearFilters}
+                      className="text-xs text-[#1e40af] hover:underline"
+                    >
+                      Clear all
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Status</label>
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {["", "pending", "completed", "failed"].map((s) => (
+                          <button
+                            key={s}
+                            onClick={() => setFilterStatus(s)}
+                            className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
+                              filterStatus === s
+                                ? "border-[#1e40af] bg-[#1e40af] text-white"
+                                : "border-slate-200 text-slate-600 hover:border-slate-300"
+                            }`}
+                          >
+                            {s === "" ? "All" : s.charAt(0).toUpperCase() + s.slice(1)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Driver Phone</label>
+                      <input
+                        type="text"
+                        placeholder="Search driver phone..."
+                        value={filterDriver}
+                        onChange={(e) => setFilterDriver(e.target.value)}
+                        className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-[#1e40af] focus:outline-none focus:ring-1 focus:ring-[#1e40af]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Date Range</label>
+                      <div className="mt-1.5 grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-slate-400">From</label>
+                          <input
+                            type="date"
+                            value={filterDateFrom}
+                            onChange={(e) => setFilterDateFrom(e.target.value)}
+                            className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:border-[#1e40af] focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-slate-400">To</label>
+                          <input
+                            type="date"
+                            value={filterDateTo}
+                            onChange={(e) => setFilterDateTo(e.target.value)}
+                            className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:border-[#1e40af] focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setShowFilter(false)}
+                    className="mt-4 w-full rounded-lg bg-[#1e40af] py-2 text-sm font-medium text-white hover:bg-[#1d4ed8] transition-colors"
+                  >
+                    Apply Filters
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
+
+        {/* Results count */}
+        {(search || activeFilters > 0) && (
+          <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 text-xs text-slate-500">
+            Showing {filtered.length} of {deliveries.length} deliveries
+            {activeFilters > 0 && (
+              <button onClick={clearFilters} className="ml-2 text-[#1e40af] hover:underline">
+                Clear filters
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50/50">
-                <th className="px-4 py-3 text-left font-medium text-slate-500">
-                  <span className="inline-flex items-center gap-1">
-                    <User className="h-4 w-4" />
-                    CUSTOMER
-                  </span>
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500">
-                  STATUS
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500">
-                  TIME
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-slate-500">
-                  DRIVER
-                </th>
+                <th className="px-4 py-3 text-left font-medium text-slate-500 text-xs uppercase tracking-wide">Customer</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-500 text-xs uppercase tracking-wide">Status</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-500 text-xs uppercase tracking-wide">Time</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-500 text-xs uppercase tracking-wide">Driver</th>
                 <th className="w-10 px-4 py-3" />
               </tr>
             </thead>
             <tbody>
-              {!deliveries.length ? (
+              {loading ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-12 text-center text-slate-500">
-                    No deliveries yet. Click &quot;New Delivery&quot; to create one.
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#1e40af] border-t-transparent" />
+                      Loading deliveries...
+                    </div>
+                  </td>
+                </tr>
+              ) : !filtered.length ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-12 text-center">
+                    <div className="flex flex-col items-center gap-2 text-slate-400">
+                      <Package className="h-8 w-8" />
+                      <p className="font-medium text-slate-600">No deliveries found</p>
+                      <p className="text-sm">
+                        {search || activeFilters > 0 ? "Try adjusting your search or filters" : 'Click "New Delivery" to create one'}
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (
-                deliveries.slice(0, 15).map((d) => (
-                  <tr
-                    key={d.id}
-                    className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50"
-                  >
+                filtered.slice(0, 15).map((d) => (
+                  <tr key={d.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50 transition-colors">
                     <td className="px-4 py-3">
                       <Link
                         href={d.status === "completed" ? `/proof/${d.id}` : `/dashboard/deliveries/${d.id}`}
                         className="flex items-center gap-3"
                       >
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-600">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-slate-200 to-slate-300 text-slate-600">
                           <User className="h-4 w-4" />
                         </span>
                         <div>
-                          <p className="font-medium text-slate-900">
-                            {d.customer_name}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            #{d.id.slice(-6).toUpperCase()}
-                          </p>
+                          <p className="font-medium text-slate-900">{d.customer_name}</p>
+                          <p className="text-xs text-slate-400">#{d.id.slice(-6).toUpperCase()}</p>
                         </div>
                       </Link>
                     </td>
                     <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          d.status === "completed"
-                            ? "bg-green-100 text-green-700"
-                            : d.status === "failed"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-amber-100 text-amber-700"
-                        }`}
-                      >
-                        {d.status === "completed"
-                          ? "Completed"
+                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        d.status === "completed"
+                          ? "bg-green-100 text-green-700"
                           : d.status === "failed"
-                            ? "Failed"
-                            : "In Progress"}
+                          ? "bg-red-100 text-red-700"
+                          : "bg-amber-100 text-amber-700"
+                      }`}>
+                        <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                        {d.status === "completed" ? "Completed" : d.status === "failed" ? "Failed" : "Pending"}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
-                      {formatTime(d.created_at)}
-                    </td>
+                    <td className="px-4 py-3 text-slate-500 text-xs">{formatTime(d.created_at)}</td>
                     <td className="px-4 py-3">
-                      <span className="flex items-center gap-2 text-slate-600">
-                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-200 text-slate-500">
-                          <User className="h-3 w-3" />
-                        </span>
-                        {d.driver_phone || "—"}
-                      </span>
+                      <span className="text-sm text-slate-600">{d.driver_phone || <span className="text-slate-300">—</span>}</span>
                     </td>
                     <td className="px-4 py-3">
                       <Link
                         href={d.status === "completed" ? `/proof/${d.id}` : `/dashboard/deliveries/${d.id}`}
-                        className="inline-flex text-slate-400 hover:text-slate-600"
+                        className="inline-flex text-slate-300 hover:text-slate-600 transition-colors"
                       >
                         <ChevronRight className="h-5 w-5" />
                       </Link>
@@ -178,34 +389,20 @@ export default async function DashboardPage() {
             </tbody>
           </table>
         </div>
-        {deliveries.length > 0 && (
+
+        {filtered.length > 0 && (
           <div className="flex items-center justify-between border-t border-slate-200 px-4 py-3 text-sm text-slate-500">
             <div className="flex items-center gap-4">
-              <p>
-                Showing 1-{Math.min(15, deliveries.length)} of {deliveries.length} deliveries
-              </p>
-              <Link
-                href="/dashboard/deliveries"
-                className="text-[#1e40af] font-medium hover:underline"
-              >
+              <p>Showing 1–{Math.min(15, filtered.length)} of {filtered.length}</p>
+              <Link href="/dashboard/deliveries" className="text-[#1e40af] font-medium hover:underline text-sm">
                 View All
               </Link>
             </div>
             <div className="flex gap-1">
-              <button
-                type="button"
-                className="rounded border border-slate-200 p-1.5 hover:bg-slate-50 disabled:opacity-50"
-                disabled
-                aria-label="Previous page"
-              >
+              <button disabled className="rounded border border-slate-200 p-1.5 hover:bg-slate-50 disabled:opacity-40">
                 <ChevronRight className="h-4 w-4 rotate-180" />
               </button>
-              <button
-                type="button"
-                className="rounded border border-slate-200 p-1.5 hover:bg-slate-50 disabled:opacity-50"
-                disabled={deliveries.length <= 15}
-                aria-label="Next page"
-              >
+              <button disabled={filtered.length <= 15} className="rounded border border-slate-200 p-1.5 hover:bg-slate-50 disabled:opacity-40">
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
@@ -214,20 +411,12 @@ export default async function DashboardPage() {
       </div>
 
       {/* Upgrade banner */}
-      <div className="mt-8 overflow-hidden rounded-xl bg-gradient-to-r from-[#1e40af] to-[#3b82f6] p-6 text-white shadow-lg">
-        <div className="relative">
-          <h3 className="text-lg font-bold">Grow with ProofDrop Pro</h3>
-          <p className="mt-1 text-sm text-blue-100">
-            Get custom branding, PDF reports, and multi-user access to streamline
-            your entire delivery operation.
-          </p>
-          <Button
-            asChild
-            className="mt-4 bg-white text-[#1e40af] hover:bg-blue-50"
-          >
-            <Link href="#">Upgrade Now</Link>
-          </Button>
-        </div>
+      <div className="mt-6 overflow-hidden rounded-xl bg-gradient-to-r from-[#1e40af] to-[#3b82f6] p-6 text-white shadow-lg">
+        <h3 className="text-lg font-bold">Grow with ProofDrop Pro</h3>
+        <p className="mt-1 text-sm text-blue-100">Custom branding, PDF reports, and multi-user access.</p>
+        <Link href="#" className="mt-3 inline-block rounded-lg bg-white px-4 py-2 text-sm font-semibold text-[#1e40af] hover:bg-blue-50 transition-colors">
+          Upgrade Now
+        </Link>
       </div>
     </div>
   )
