@@ -7,9 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-//////////////////////////////////////////////////////
 // PROFILES (linked to Supabase auth.users)
-//////////////////////////////////////////////////////
 
 model Profile {
   id               String    @id @db.Uuid
@@ -26,9 +24,7 @@ model Profile {
   feedback         Feedback[]
 }
 
-//////////////////////////////////////////////////////
 // DELIVERIES
-//////////////////////////////////////////////////////
 
 model Delivery {
   id                String     @id @default(uuid()) @db.Uuid
@@ -63,9 +59,7 @@ model Delivery {
   @@index([status])
 }
 
-//////////////////////////////////////////////////////
 // DRIVERS
-//////////////////////////////////////////////////////
 
 model Driver {
   id          String    @id @default(uuid()) @db.Uuid
@@ -84,9 +78,7 @@ model Driver {
   @@index([user_id])
 }
 
-//////////////////////////////////////////////////////
 // CUSTOMERS
-//////////////////////////////////////////////////////
 
 model Customer {
   id         String    @id @default(uuid()) @db.Uuid
@@ -105,9 +97,7 @@ model Customer {
   @@unique([user_id, phone])
 }
 
-//////////////////////////////////////////////////////
 // NOTIFICATIONS
-//////////////////////////////////////////////////////
 
 model Notification {
   id          String     @id @default(uuid()) @db.Uuid
@@ -120,9 +110,7 @@ model Notification {
   delivery    Delivery?  @relation(fields: [delivery_id], references: [id], onDelete: Cascade)
 }
 
-//////////////////////////////////////////////////////
 // FEEDBACK
-//////////////////////////////////////////////////////
 
 model Feedback {
   id         String    @id @default(uuid()) @db.Uuid
