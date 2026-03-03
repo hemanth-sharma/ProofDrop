@@ -35,20 +35,20 @@ export default function LoginPage() {
     // window.location.assign("/dashboard")
   }
 
-  async function signInWithGoogle() {
-    setLoading(true)
-    setError(null)
-    const supabase = createClient()
-    const { error: err } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    })
-    if (err) {
-      setError(err.message)
-      setLoading(false)
-      return
-    }
-  }
+  // async function signInWithGoogle() {
+  //   setLoading(true)
+  //   setError(null)
+  //   const supabase = createClient()
+  //   const { error: err } = await supabase.auth.signInWithOAuth({
+  //     provider: "google",
+  //     options: { redirectTo: `${window.location.origin}/auth/callback` },
+  //   })
+  //   if (err) {
+  //     setError(err.message)
+  //     setLoading(false)
+  //     return
+  //   }
+  // }
 
   return (
     <main className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
