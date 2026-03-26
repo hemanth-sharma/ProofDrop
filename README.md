@@ -70,3 +70,12 @@ Open [http://localhost:3000](http://localhost:3000). Sign up, create a delivery,
 - **Frontend**: Vercel (connect repo, set env vars, deploy).
 - **Backend**: Same Next.js app on Vercel (API routes run there).
 - Set `NEXT_PUBLIC_APP_URL` to your Vercel URL so SMS links point to production.
+
+
+## Pending Tasks and functionalities
+- **Twilio**: Add twilio for calls and messages.
+- **Payment Integration**: Integrate Stripe payment methods.
+- **Improve UI**: Fix mobile view, add tables and data analytics.
+- **Authentication**: Account Login/Logout is already added just activate it when in prod.
+- **SEO, Security & Marketing**: Test SEO and security. Use GOogle Ads.
+- **Distribution**: Find first customer.
