@@ -74,6 +74,7 @@ Open [http://localhost:3000](http://localhost:3000). Sign up, create a delivery,
 
 ## Pending Tasks and functionalities
 - **Twilio**: Add twilio for calls and messages.
+- **AWS File Storage**: Use AWS for storing proof documents.
 - **Payment Integration**: Integrate Stripe payment methods.
 - **Improve UI**: Fix mobile view, add tables and data analytics.
 - **Authentication**: Account Login/Logout is already added just activate it when in prod.
