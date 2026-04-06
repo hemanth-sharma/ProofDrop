@@ -50,6 +50,7 @@ export async function POST(req: NextRequest) {
     delivery_address,
     driver_id,
     driver_phone,
+    product_name,
   } = body
 
   if (!customer_name || !customer_phone) {
@@ -124,6 +125,7 @@ export async function POST(req: NextRequest) {
       driver_id: driver_id || null,
       driver_link_token,
       driver_phone: driver_phone || null,
+      product_name: product_name,
       status: "pending",
     })
     .select()
@@ -140,6 +142,8 @@ export async function POST(req: NextRequest) {
   */
 
   const driverLink = `${baseUrl}/driver/${driver_link_token}`
+
+  console.log("Driver link: ", driverLink)
 
   const smsError = await sendDriverSMS({
     customer_name: delivery.customer_name,

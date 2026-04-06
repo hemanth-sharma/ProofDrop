@@ -66,6 +66,7 @@ export default function NewDeliveryPage() {
         delivery_address: deliveryAddress || undefined,
         driver_id: selectedDriver?.id,
         driver_phone: selectedDriver?.phone,
+        product_name: "Default Product",
       }),
     })
     const data = await res.json().catch(() => ({}))

@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 
-export async function GET() {
+export async function GET(req: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -9,12 +9,26 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  const { searchParams } = new URL(req.url)
+  const includeDeliveries = searchParams.get("include_deliveries") === "true"
+
   const { data, error } = await supabase
     .from("customers")
-    .select(`
-      *,
-      deliveries(count)
-    `)
+    .select(
+      includeDeliveries
+        ? `
+          *,
+          deliveries (
+            id,
+            status,
+            created_at
+          )
+        `
+        : `
+          *,
+          deliveries(count)
+        `
+    )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
 

@@ -49,6 +49,32 @@ export default function LoginPage() {
       return
     }
   }
+  async function handleForgotPassword() {
+    if (!email) {
+      setError("Please enter your email first")
+      return
+    }
+  
+    setLoading(true)
+    setError(null)
+  
+    const supabase = createClient()
+  
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+  
+    setLoading(false)
+  
+    if (error) {
+      setError(error.message)
+      return
+    }
+  
+    console.log("RESET LINK (check email normally):", data)
+  
+    alert("Password reset link sent (check console for now)")
+  }
 
   return (
     <main className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
@@ -96,6 +122,15 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                className="text-sm text-blue-600 hover:underline"
+              >
+                Forgot password?
+              </button>
             </div>
             {error && (
               <p className="text-sm text-destructive">{error}</p>

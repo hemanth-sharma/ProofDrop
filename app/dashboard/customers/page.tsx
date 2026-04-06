@@ -31,45 +31,41 @@ export default function CustomersPage() {
   const [page, setPage] = useState(1)
   const filterRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    fetch("/api/customers")
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          const formatted = data.map((c: any) => {
-            const deliveries = c.deliveries || []
-            const total = deliveries[0]?.count ?? deliveries.length
-            return {
-              ...c,
-              total,
-              pending: 0,
-              completed: 0,
-              lastInteraction: c.updated_at || c.created_at,
-              status: "Completed" as const,
-            }
-          })
-          setCustomers(formatted)
-        }
-      })
-      .finally(() => setLoading(false))
-  }, [])
 
   // Fetch with delivery details for accurate pending/completed counts
   useEffect(() => {
-    // Fetch detailed data from the server-side endpoint
     fetch("/api/customers?include_deliveries=true")
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) {
           const formatted = data.map((c: any) => {
             const deliveries = c.deliveries || []
-            const isArray = Array.isArray(deliveries)
-            const total = isArray ? deliveries.length : (deliveries[0]?.count ?? 0)
-            const pending = isArray ? deliveries.filter((d: any) => d.status === "pending").length : 0
-            const completed = isArray ? deliveries.filter((d: any) => d.status === "completed").length : 0
-            const lastDelivery = isArray
-              ? deliveries.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+
+            const hasFullDeliveries =
+              Array.isArray(deliveries) &&
+              deliveries.length > 0 &&
+              deliveries[0]?.status !== undefined
+
+            const total = hasFullDeliveries
+              ? deliveries.length
+              : deliveries[0]?.count ?? 0
+
+            const pending = hasFullDeliveries
+              ? deliveries.filter((d: any) => d.status === "pending").length
+              : 0
+
+            const completed = hasFullDeliveries
+              ? deliveries.filter((d: any) => d.status === "completed").length
+              : 0
+
+            const lastDelivery = hasFullDeliveries
+              ? deliveries.sort(
+                  (a: any, b: any) =>
+                    new Date(b.created_at).getTime() -
+                    new Date(a.created_at).getTime()
+                )[0]
               : null
+
             return {
               ...c,
               total,
@@ -79,10 +75,11 @@ export default function CustomersPage() {
               status: pending > 0 ? "Pending" as const : "Completed" as const,
             }
           })
+
           setCustomers(formatted)
         }
       })
-      .catch(() => {}) // fallback to initial data
+      .finally(() => setLoading(false))
   }, [])
 
   useEffect(() => {
