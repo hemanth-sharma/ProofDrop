@@ -76,7 +76,7 @@ Open [http://localhost:3000](http://localhost:3000). Sign up, create a delivery,
 - **Twilio**: Add twilio for calls and messages.
 - **AWS File Storage**: Use AWS for storing proof documents.
 - **Payment Integration**: Integrate Stripe payment methods.
-- **Improve UI**: Fix mobile view, add tables and data analytics.
+- **Improve UI**: Fix mobile view, add tables and data analytics. Add Driver Link in the UI as well.
 - **Authentication**: Account Login/Logout is already added just activate it when in prod.
 - **SEO, Security & Marketing**: Test SEO and security. Use GOogle Ads.
 - **Distribution**: Find first customer.
