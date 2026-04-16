@@ -72,9 +72,9 @@ Open [http://localhost:3000](http://localhost:3000). Sign up, create a delivery,
 - Set `NEXT_PUBLIC_APP_URL` to your Vercel URL so SMS links point to production.
 
 
-## Pending Tasks and functionalities
+## Pending Tasks and functionalities for MVP.
 - **Twilio**: Add twilio for calls and messages.
-- **AWS File Storage**: Use AWS for storing proof documents.
+- **AWS File Storage**: Use AWS for storing proof documents or use supabase.
 - **Payment Integration**: Integrate Stripe payment methods.
 - **Improve UI**: Fix mobile view, add tables and data analytics. Add Driver Link in the UI as well.
 - **Authentication**: Account Login/Logout is already added just activate it when in prod.
