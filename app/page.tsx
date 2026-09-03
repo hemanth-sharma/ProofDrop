@@ -41,7 +41,7 @@ export default function HomePage() {
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link
-              href="/signup"
+              href="/login"
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1e40af] px-8 py-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-[#1d4ed8] sm:w-auto"
             >
               Start Free Trial →

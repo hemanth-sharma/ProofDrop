@@ -49,6 +49,26 @@ export default function LoginPage() {
       return
     }
   }
+  async function signInDemoUser(e: React.FormEvent){
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    const supabase = createClient()
+    
+    // Fixed: Explicit key-value pairs + NEXT_PUBLIC_ prefix
+    const { error: err } = await supabase.auth.signInWithPassword({ 
+      email: process.env.NEXT_PUBLIC_DEMO_EMAIL!, 
+      password: process.env.NEXT_PUBLIC_DEMO_PASSWORD! 
+    })
+    
+    setLoading(false)
+    if (err) {
+      setError(err.message)
+      return
+    }
+    window.location.href = "/dashboard"
+  }
+
   async function handleForgotPassword() {
     if (!email) {
       setError("Please enter your email first")
@@ -84,6 +104,15 @@ export default function LoginPage() {
           <CardDescription>Access your ProofDrop dashboard</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+        <Button
+            type="submit"
+            variant="outline"
+            className="w-full bg-green-500 text-white hover:bg-green-700"
+            onClick={signInDemoUser}
+            disabled={loading}
+          >
+            Login with Demo User
+          </Button>
           <Button
             type="button"
             variant="outline"

@@ -33,7 +33,7 @@ export function Header() {
             Log In
           </Link>
           <Link
-            href="/signup"
+            href="/login"
             className="rounded-lg bg-[#1e40af] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#1d4ed8]"
           >
             Start Free
