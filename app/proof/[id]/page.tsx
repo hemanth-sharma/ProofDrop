@@ -7,11 +7,15 @@ import {
   Clock,
   User,
   MapPin,
+  Package,
   CheckCircle,
   Shield,
   Smartphone,
+  ShieldCheck,
+  Navigation,
 } from "lucide-react"
 import { ProofActions } from "./ProofActions"
+import { CustomerReaction } from "./CustomerReaction"
 
 export default async function ProofPage({
   params,
@@ -36,6 +40,9 @@ export default async function ProofPage({
     .single()
 
   const refId = `#PD-${id.slice(-5)}`
+  const aiConfidencePct = delivery.ai_confidence
+    ? Math.round(delivery.ai_confidence * 100)
+    : null
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -65,6 +72,17 @@ export default async function ProofPage({
             <CheckCircle className="h-4 w-4" />
             Delivery Complete
           </span>
+          {delivery.ai_verified && (
+            <span className="inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1.5 text-sm font-medium text-blue-800">
+              <ShieldCheck className="h-4 w-4" />
+              AI-Verified Photo
+              {aiConfidencePct !== null && (
+                <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-semibold text-white">
+                  {aiConfidencePct}%
+                </span>
+              )}
+            </span>
+          )}
         </div>
         <h1 className="text-3xl font-bold text-slate-900">Proof of Delivery</h1>
         <p className="mt-1 text-slate-600">
@@ -89,6 +107,34 @@ export default async function ProofPage({
           )}
         </div>
 
+        {/* AI verification card */}
+        {delivery.ai_verified && (
+          <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50 p-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100">
+                <ShieldCheck className="h-5 w-5 text-blue-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="font-bold text-blue-900">
+                  AI Photo Verification — Passed
+                  {aiConfidencePct !== null && (
+                    <span className="ml-2 inline-flex items-center rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-semibold text-white">
+                      {aiConfidencePct}% confidence
+                    </span>
+                  )}
+                </p>
+                <p className="mt-1 text-sm text-blue-800 leading-snug">
+                  {delivery.ai_reason || "The uploaded photo was checked by AI to confirm it shows the delivered item."}
+                </p>
+                <p className="mt-2 text-[11px] text-blue-500">
+                  Checked {delivery.ai_verified_at ? formatDate(delivery.ai_verified_at) : "at upload"}
+                  {delivery.ai_mode === "llm" ? " · vision model" : " · offline checks"}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Two-column details card */}
         <div className="mt-8 rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:p-8">
           <div className="grid gap-8 lg:grid-cols-2">
@@ -109,13 +155,20 @@ export default async function ProofPage({
                     </p>
                   </div>
                 </li>
+                {delivery.product_name && (
+                  <li className="flex items-start gap-3">
+                    <Package className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" />
+                    <div>
+                      <p className="text-xs text-slate-500">Item</p>
+                      <p className="font-medium text-slate-900">{delivery.product_name}</p>
+                    </div>
+                  </li>
+                )}
                 <li className="flex items-start gap-3">
                   <User className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" />
                   <div>
-                    <p className="text-xs text-slate-500">Driver Name</p>
-                    <p className="font-medium text-slate-900">
-                      {delivery.driver_phone || "Driver"}
-                    </p>
+                    <p className="text-xs text-slate-500">Delivered To</p>
+                    <p className="font-medium text-slate-900">{delivery.customer_name}</p>
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
@@ -136,39 +189,52 @@ export default async function ProofPage({
               </ul>
             </div>
 
-            {/* Right: Digital signature + security */}
+            {/* Right: Delivery confirmation + security */}
             <div>
               <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Digital Signature
+                Delivery Confirmation
               </h2>
-              {delivery.signature_data ? (
-                <div className="mt-4 rounded-lg border-2 border-dashed border-slate-200 bg-slate-50/50 p-4">
-                  <img
-                    src={delivery.signature_data}
-                    alt="Signature"
-                    className="mx-auto max-h-24 w-full object-contain"
-                  />
-                  <p className="mt-2 text-center font-medium text-slate-900">
-                    {delivery.customer_name}
-                  </p>
-                  <p className="text-center text-xs text-green-600">
-                    Verified Recipient
-                  </p>
-                </div>
-              ) : (
-                <div className="mt-4 rounded-lg border-2 border-dashed border-slate-200 p-6 text-center text-slate-500">
-                  No signature captured
-                </div>
-              )}
+              <div className="mt-4 rounded-lg border-2 border-dashed border-green-200 bg-green-50/50 p-4 text-center">
+                <CheckCircle className="mx-auto h-8 w-8 text-green-500" />
+                <p className="mt-2 font-medium text-slate-900">
+                  Confirmed by driver
+                  {delivery.driver_phone ? (
+                    <span className="block text-xs font-normal text-slate-500 mt-0.5">
+                      Driver {delivery.driver_phone}
+                    </span>
+                  ) : null}
+                </p>
+                <p className="text-xs text-green-600 mt-1">
+                  {delivery.completed_at ? formatDate(delivery.completed_at) : ""}
+                </p>
+              </div>
 
               <h3 className="mt-6 text-xs font-semibold uppercase tracking-wider text-slate-400">
                 Security Verification
               </h3>
               <ul className="mt-3 space-y-2">
-                <li className="flex items-center gap-2 text-sm">
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                  GPS Confirmation: Match (0.02km)
-                </li>
+                {delivery.delivery_lat != null && delivery.delivery_lng != null ? (
+                  <li className="flex items-center gap-2 text-sm">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                    <span>
+                      GPS captured at drop-off: {delivery.delivery_lat.toFixed(4)}, {delivery.delivery_lng.toFixed(4)}
+                    </span>
+                    <a
+                      href={`https://www.google.com/maps?q=${delivery.delivery_lat},${delivery.delivery_lng}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-[#1e40af] hover:underline"
+                    >
+                      <Navigation className="h-3 w-3" />
+                      Map
+                    </a>
+                  </li>
+                ) : (
+                  <li className="flex items-center gap-2 text-sm text-slate-500">
+                    <Shield className="h-4 w-4 text-slate-400" />
+                    GPS: not captured for this delivery
+                  </li>
+                )}
                 <li className="flex items-center gap-2 text-sm">
                   <CheckCircle className="h-4 w-4 text-green-500" />
                   Tamper-proof Seal: Encrypted
@@ -178,6 +244,13 @@ export default async function ProofPage({
                   Device Hash: {id.slice(0, 4)}-{id.slice(4, 8)}-{id.slice(8, 12)}-{id.slice(12, 16)}
                 </li>
               </ul>
+
+              {/* Customer reaction */}
+              <CustomerReaction
+                deliveryId={delivery.id}
+                customerName={delivery.customer_name}
+                customerEmail={delivery.customer_email}
+              />
             </div>
           </div>
 

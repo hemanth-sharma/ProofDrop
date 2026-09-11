@@ -2,17 +2,36 @@
 
 import { useEffect, useState, useRef } from "react"
 import { useParams } from "next/navigation"
-import { Camera, CheckCircle, MapPin, Package, AlertCircle } from "lucide-react"
+import {
+  Camera, CheckCircle, MapPin, Package, AlertCircle, Loader2,
+  ShieldCheck, RefreshCw, User, ClipboardList,
+} from "lucide-react"
 
 interface DeliveryInfo {
   id: string
   customer_name: string
+  customer_phone?: string
   delivery_notes: string | null
   delivery_address: string | null
+  product_name?: string | null
   status: string
 }
 
-type Step = "info" | "photo" | "done" | "error"
+interface Verification {
+  verified: boolean
+  confidence: number
+  reason: string
+  mode: "llm" | "heuristic"
+}
+
+type Step = "info" | "verifying" | "approved" | "rejected" | "done" | "error"
+
+const STEPS = [
+  { key: "details", label: "Details", icon: ClipboardList },
+  { key: "photo", label: "Photo", icon: Camera },
+  { key: "ai", label: "AI Check", icon: ShieldCheck },
+  { key: "done", label: "Done", icon: CheckCircle },
+]
 
 export default function DriverCapturePage() {
   const params = useParams()
@@ -24,6 +43,8 @@ export default function DriverCapturePage() {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [verification, setVerification] = useState<Verification | null>(null)
+  const [aiEnabled, setAiEnabled] = useState(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -42,12 +63,17 @@ export default function DriverCapturePage() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // Reset any previous verdict
+    setVerification(null)
+    setPhotoUrl(null)
+
     // Show preview immediately
     const reader = new FileReader()
     reader.onload = (ev) => setPhotoPreview(ev.target?.result as string)
     reader.readAsDataURL(file)
 
-    // Upload in background
+    // Upload + AI verification
+    setStep("verifying")
     const formData = new FormData()
     formData.set("file", file)
     try {
@@ -56,10 +82,32 @@ export default function DriverCapturePage() {
         body: formData,
       })
       const data = await res.json()
+      if (data.error) {
+        setErrorMsg(data.error)
+        setStep("error")
+        return
+      }
       if (data.url) setPhotoUrl(data.url)
+      if (typeof data.ai_enabled === "boolean") setAiEnabled(data.ai_enabled)
+      if (data.verification) {
+        setVerification(data.verification)
+        setStep(data.verification.verified ? "approved" : "rejected")
+      } else {
+        setStep("approved") // AI disabled — photo-only flow
+      }
     } catch {
-      // Photo upload failed, will complete without it
+      setErrorMsg("Upload failed. Check your connection and try again.")
+      setStep("error")
     }
+  }
+
+  function retake() {
+    setPhotoPreview(null)
+    setPhotoUrl(null)
+    setVerification(null)
+    setStep("info")
+    // Re-open camera immediately
+    setTimeout(() => fileInputRef.current?.click(), 100)
   }
 
   async function handleConfirm() {
@@ -144,20 +192,26 @@ export default function DriverCapturePage() {
           </div>
           <h2 className="text-2xl font-bold text-slate-900">Delivery Confirmed!</h2>
           <p className="mt-2 text-slate-500">
-            {delivery?.customer_name} will receive proof of delivery via SMS.
+            {delivery?.customer_name} will receive proof of delivery by message &amp; email.
           </p>
-          <div className="mt-6 rounded-xl bg-green-50 border border-green-100 p-4 text-sm text-green-700">
-            ✓ Photo captured &amp; saved<br />
-            ✓ Customer notified via SMS<br />
-            ✓ Record stored securely
+          <div className="mt-6 rounded-xl bg-green-50 border border-green-100 p-4 text-sm text-green-700 text-left space-y-1.5">
+            <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 shrink-0" /> Photo captured &amp; saved</div>
+            {verification?.verified && (
+              <div className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 shrink-0" /> Verified by AI ({Math.round(verification.confidence * 100)}% confidence)</div>
+            )}
+            <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 shrink-0" /> Customer notified with proof link</div>
+            <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 shrink-0" /> Record stored securely</div>
           </div>
-          <p className="mt-6 text-xs text-slate-400">You can now close this tab.</p>
+          <p className="mt-6 text-xs text-slate-400">You can now close this tab and move on to your next delivery.</p>
         </div>
       </div>
     )
   }
 
   if (!delivery) return null
+
+  const currentStepIdx =
+    step === "verifying" ? 2 : step === "approved" || step === "rejected" ? 2 : photoPreview ? 1 : 0
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -167,26 +221,63 @@ export default function DriverCapturePage() {
           <p className="text-blue-200 text-xs uppercase tracking-wider font-medium">ProofDrop · Delivery Capture</p>
           <h1 className="mt-1 text-lg font-bold">Delivery for {delivery.customer_name}</h1>
         </div>
+        {/* Step indicator */}
+        <div className="max-w-md mx-auto mt-3">
+          <div className="flex items-center gap-1.5">
+            {STEPS.map((s, i) => {
+              const Icon = s.icon
+              const isActive = i === currentStepIdx
+              const isDone = i < currentStepIdx || (step === "approved" && s.key === "ai")
+              return (
+                <div key={s.key} className="flex items-center gap-1.5 flex-1">
+                  <div
+                    className={`flex items-center justify-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold transition-colors ${
+                      isActive
+                        ? "bg-white text-[#1e40af]"
+                        : isDone
+                          ? "bg-green-400/30 text-green-100"
+                          : "bg-blue-900/40 text-blue-200"
+                    }`}
+                  >
+                    {isDone && !isActive ? <CheckCircle className="h-3 w-3" /> : <Icon className={`h-3 w-3 ${isActive && step === "verifying" ? "animate-pulse" : ""}`} />}
+                    {s.label}
+                  </div>
+                  {i < STEPS.length - 1 && <div className={`h-0.5 flex-1 rounded ${isDone ? "bg-green-400/50" : "bg-blue-900/40"}`} />}
+                </div>
+              )
+            })}
+          </div>
+        </div>
       </div>
 
       <div className="max-w-md mx-auto p-4 space-y-4">
         {/* Delivery info */}
-        {(delivery.delivery_address || delivery.delivery_notes) && (
-          <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm space-y-2">
-            {delivery.delivery_address && (
-              <div className="flex items-start gap-2 text-sm text-slate-700">
-                <MapPin className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
-                <span>{delivery.delivery_address}</span>
-              </div>
-            )}
-            {delivery.delivery_notes && (
-              <div className="flex items-start gap-2 text-sm text-slate-700">
-                <Package className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
-                <span>{delivery.delivery_notes}</span>
-              </div>
-            )}
-          </div>
-        )}
+        <div className="rounded-xl bg-white border border-slate-200 p-4 shadow-sm space-y-2">
+          {delivery.product_name && (
+            <div className="flex items-start gap-2 text-sm text-slate-700">
+              <Package className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+              <span className="font-medium">{delivery.product_name}</span>
+            </div>
+          )}
+          {delivery.delivery_address && (
+            <div className="flex items-start gap-2 text-sm text-slate-700">
+              <MapPin className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+              <span>{delivery.delivery_address}</span>
+            </div>
+          )}
+          {delivery.customer_phone && (
+            <div className="flex items-start gap-2 text-sm text-slate-700">
+              <User className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+              <span>{delivery.customer_phone}</span>
+            </div>
+          )}
+          {delivery.delivery_notes && (
+            <div className="flex items-start gap-2 text-sm text-slate-700 border-t border-slate-100 pt-2">
+              <span className="text-amber-600">📝</span>
+              <span>{delivery.delivery_notes}</span>
+            </div>
+          )}
+        </div>
 
         {/* Camera capture — primary action */}
         <div className="rounded-xl bg-white border border-slate-200 shadow-sm overflow-hidden">
@@ -200,28 +291,33 @@ export default function DriverCapturePage() {
           />
 
           {photoPreview ? (
-            <div>
+            <div className="relative">
               <img
                 src={photoPreview}
                 alt="Delivery proof"
-                className="w-full object-cover max-h-72"
+                className={`w-full object-cover max-h-72 transition-all ${step === "verifying" ? "opacity-60" : ""}`}
               />
-              <div className="p-3 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
-                  <CheckCircle className="h-4 w-4" />
-                  Photo captured
+              {step === "verifying" && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-slate-900/30">
+                  <Loader2 className="h-10 w-10 animate-spin text-white drop-shadow" />
+                  <p className="text-white font-semibold text-sm drop-shadow">AI is verifying your photo…</p>
+                  <p className="text-white/80 text-xs drop-shadow">Checking it shows the delivered item</p>
                 </div>
-                <button
-                  onClick={() => {
-                    setPhotoPreview(null)
-                    setPhotoUrl(null)
-                    fileInputRef.current?.click()
-                  }}
-                  className="text-xs text-slate-500 hover:text-slate-700 underline"
-                >
-                  Retake
-                </button>
-              </div>
+              )}
+              {step !== "verifying" && (
+                <div className="p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-slate-600 text-sm font-medium">
+                    <CheckCircle className="h-4 w-4" />
+                    Photo captured
+                  </div>
+                  <button
+                    onClick={retake}
+                    className="text-xs text-slate-500 hover:text-slate-700 underline"
+                  >
+                    Retake
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <button
@@ -239,12 +335,55 @@ export default function DriverCapturePage() {
           )}
         </div>
 
+        {/* AI verification result */}
+        {step === "approved" && verification?.verified && (
+          <div className="rounded-xl bg-green-50 border border-green-200 p-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-100">
+                <ShieldCheck className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <p className="font-bold text-green-800">
+                  Proof approved by AI
+                  <span className="ml-2 inline-flex items-center rounded-full bg-green-600 px-2 py-0.5 text-[10px] font-semibold text-white">
+                    {Math.round(verification.confidence * 100)}% confidence
+                  </span>
+                </p>
+                <p className="mt-1 text-sm text-green-700 leading-snug">{verification.reason}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === "rejected" && (
+          <div className="rounded-xl bg-red-50 border border-red-200 p-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
+                <AlertCircle className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <p className="font-bold text-red-800">Photo not accepted</p>
+                <p className="mt-1 text-sm text-red-700 leading-snug">
+                  {verification?.reason || "The photo doesn't clearly show a delivered item."}
+                </p>
+                <button
+                  onClick={retake}
+                  className="mt-3 inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 transition-colors"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Retake Photo
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Confirm button */}
         <button
           onClick={handleConfirm}
-          disabled={submitting || !photoPreview}
+          disabled={submitting || !photoPreview || step === "verifying" || step === "rejected"}
           className={`w-full rounded-xl py-4 text-base font-bold text-white shadow-lg transition-all ${
-            photoPreview
+            photoPreview && (step === "approved" || step === "info")
               ? "bg-green-600 hover:bg-green-700 active:scale-95"
               : "bg-slate-300 cursor-not-allowed"
           }`}
@@ -267,9 +406,12 @@ export default function DriverCapturePage() {
             Please take a photo of the delivery before confirming.
           </p>
         )}
+        {photoPreview && step === "approved" && !verification?.verified && aiEnabled && (
+          <p className="text-center text-xs text-slate-400">Photo saved — AI verification is optional in this mode.</p>
+        )}
 
         <p className="text-center text-xs text-slate-400 pb-4">
-          Powered by ProofDrop · Secure delivery verification
+          Powered by ProofDrop · AI-verified delivery proof
         </p>
       </div>
     </div>
