@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Sparkles } from "lucide-react"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -32,35 +33,20 @@ export default function LoginPage() {
       return
     }
     window.location.href = "/dashboard"
-    // window.location.assign("/dashboard")
   }
 
-  async function signInWithGoogle() {
-    setLoading(true)
-    setError(null)
-    const supabase = createClient()
-    const { error: err } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    })
-    if (err) {
-      setError(err.message)
-      setLoading(false)
-      return
-    }
-  }
   async function signInDemoUser(e: React.FormEvent){
     e.preventDefault()
     setLoading(true)
     setError(null)
     const supabase = createClient()
-    
+
     // Fixed: Explicit key-value pairs + NEXT_PUBLIC_ prefix
-    const { error: err } = await supabase.auth.signInWithPassword({ 
-      email: process.env.NEXT_PUBLIC_DEMO_EMAIL!, 
-      password: process.env.NEXT_PUBLIC_DEMO_PASSWORD! 
+    const { error: err } = await supabase.auth.signInWithPassword({
+      email: process.env.NEXT_PUBLIC_DEMO_EMAIL!,
+      password: process.env.NEXT_PUBLIC_DEMO_PASSWORD!
     })
-    
+
     setLoading(false)
     if (err) {
       setError(err.message)
@@ -104,30 +90,27 @@ export default function LoginPage() {
           <CardDescription>Access your ProofDrop dashboard</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-        <Button
+        <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-3">
+          <Button
             type="submit"
             variant="outline"
-            className="w-full bg-green-500 text-white hover:bg-green-700"
+            className="w-full bg-green-600 text-white hover:bg-green-700 border-green-600"
             onClick={signInDemoUser}
             disabled={loading}
           >
+            <Sparkles className="mr-1 h-4 w-4" />
             Login with Demo User
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={signInWithGoogle}
-            disabled={loading}
-          >
-            Continue with Google
-          </Button>
+          <p className="mt-2 text-center text-[11px] text-slate-500 leading-relaxed">
+            Full walkthrough data included — deliveries, drivers, AI-verified proofs &amp; reports.
+          </p>
+        </div>
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Or</span>
+              <span className="bg-card px-2 text-muted-foreground">Or use your account</span>
             </div>
           </div>
           <form onSubmit={signInWithEmail} className="space-y-4">

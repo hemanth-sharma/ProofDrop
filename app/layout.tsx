@@ -9,8 +9,9 @@ const plusJakarta = Plus_Jakarta_Sans({
 })
 
 export const metadata: Metadata = {
-  title: "ProofDrop — Proof of Delivery",
-  description: "Snap a photo, get a signature, send proof to your customer. No app required.",
+  title: "ProofDrop — AI-Verified Proof of Delivery",
+  description:
+    "Send drivers a link, they snap a photo, AI verifies it, and customers get instant proof. No app required.",
 }
 
 export default function RootLayout({

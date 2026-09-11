@@ -17,6 +17,7 @@ import {
   Package,
   Cake,
   Play,
+  ShieldCheck,
 } from "lucide-react"
 
 export default function HomePage() {
@@ -29,35 +30,35 @@ export default function HomePage() {
         <div className="mx-auto max-w-4xl text-center">
           <div className="inline-flex items-center gap-2 rounded-full bg-[#dbeafe] px-4 py-2 text-sm font-medium text-[#1e40af]">
             <Zap className="h-4 w-4" />
-            No app download required
+            No app download · AI-verified proof
           </div>
           <h1 className="mt-6 text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
             Delivery proof in 60{" "}
             <span className="text-[#16a34a]">seconds</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-slate-600">
-            Send your driver a link via SMS. They snap a photo, get a signature,
-            and your customer gets instant proof. That&apos;s it.
+            Send your driver a link. They snap a photo, our AI instantly verifies
+            it shows the delivered item, and your customer gets the proof. That&apos;s it.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <Link
-              href="/login"
+              href="/signup"
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1e40af] px-8 py-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-[#1d4ed8] sm:w-auto"
             >
               Start Free Trial →
             </Link>
-            <button
-              type="button"
+            <Link
+              href="/login"
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-8 py-4 text-base font-semibold text-slate-700 transition-colors hover:bg-slate-50 sm:w-auto"
             >
               <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-400 bg-slate-50">
                 <Play className="ml-0.5 h-4 w-4 fill-slate-600 text-slate-600" />
               </span>
-              Watch Demo
-            </button>
+              Try the Live Demo
+            </Link>
           </div>
           <p className="mt-4 text-sm text-slate-500">
-            Free for 14 days — No credit card required
+            Free for 14 days — No credit card required · Demo account pre-loaded with data
           </p>
         </div>
 
@@ -128,8 +129,12 @@ export default function HomePage() {
                 <p className="text-center text-xs font-semibold text-slate-900">
                   Delivery for Sarah Mitchell
                 </p>
-                <div className="mt-3 flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-slate-200 bg-slate-50">
+                <div className="relative mt-3 flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-slate-200 bg-slate-50">
                   <Camera className="h-10 w-10 text-slate-400" />
+                  <span className="absolute bottom-1.5 right-1.5 inline-flex items-center gap-1 rounded-full bg-blue-600 px-1.5 py-0.5 text-[9px] font-semibold text-white shadow">
+                    <ShieldCheck className="h-2.5 w-2.5" />
+                    AI Verified · 96%
+                  </span>
                 </div>
                 <div className="mt-2 h-12 rounded border border-slate-200 bg-slate-50" />
               </div>
@@ -177,11 +182,12 @@ export default function HomePage() {
                 Step 02
               </p>
               <h3 className="mt-1 text-lg font-bold text-slate-900">
-                Capture proof
+                Snap photo — AI checks it
               </h3>
               <p className="mt-2 text-sm text-slate-600">
-                Driver opens the link, snaps a photo of the delivery, and
-                collects a signature on screen.
+                Driver opens the link and photographs the delivered item. AI
+                instantly verifies it&apos;s a real delivery photo — blurry or
+                wrong pictures get flagged for a retake.
               </p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -231,13 +237,13 @@ export default function HomePage() {
               },
               {
                 icon: Shield,
-                title: "Tamper-proof records",
-                desc: "Photo, signature, GPS, and timestamp in one secure record.",
+                title: "AI-verified, tamper-proof",
+                desc: "Every photo is checked by AI and stored with GPS + timestamp in one secure record.",
               },
               {
                 icon: Clock,
                 title: "60-second captures",
-                desc: "Snap photo, get signature, done. Drivers love how fast it is.",
+                desc: "Snap photo, AI approves it, done. Drivers love how fast it is.",
               },
               {
                 icon: FileText,
@@ -358,10 +364,11 @@ export default function HomePage() {
               <div className="space-y-4 px-6 py-8">
                 {[
                   "Unlimited delivery proofs",
-                  "SMS to drivers & customers",
-                  "Email notifications + PDF",
-                  "Photo + signature capture",
-                  "Dashboard & history",
+                  "AI photo verification",
+                  "SMS & WhatsApp to drivers & customers",
+                  "Email notifications + proof links",
+                  "Photo + GPS + timestamp records",
+                  "Dashboard, reports & CSV export",
                   "Your logo & branding",
                   "Priority support",
                 ].map((feature) => (
