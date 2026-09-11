@@ -1,10 +1,14 @@
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import Link from "next/link"
+import { headers } from "next/headers"
+import { buildDriverMessage } from "@/lib/notify"
 import {
   ArrowLeft, Clock, User, Phone, MapPin, FileText,
-  Truck, CheckCircle, AlertCircle, Timer, ExternalLink
+  Truck, CheckCircle, AlertCircle, Timer, ExternalLink, ShieldCheck, Smartphone
 } from "lucide-react"
+import { DriverLinkActions } from "./DriverLinkActions"
+import { OutboxCard } from "./OutboxCard"
 
 export default async function DeliveryDetails({ params }: any) {
   const supabase = await createClient()
@@ -29,6 +33,16 @@ export default async function DeliveryDetails({ params }: any) {
     .single()
 
   if (!delivery) redirect("/dashboard")
+
+  // Build the public driver link from the request host (server-side)
+  const h = await headers()
+  const host = h.get("x-forwarded-host") || h.get("host") || "localhost:3000"
+  const proto = h.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https")
+  const origin = process.env.NEXT_PUBLIC_APP_URL || `${proto}://${host}`
+  const driverLink = `${origin}/driver/${delivery.driver_link_token}`
+
+  // The exact message the driver received (SMS / WhatsApp preview)
+  const driverMessage = buildDriverMessage(delivery, driverLink)
 
   const statusConfig = {
     pending: {
@@ -174,6 +188,41 @@ export default async function DeliveryDetails({ params }: any) {
                 <CheckCircle className="h-4 w-4 text-green-500" />
                 Proof of Delivery
               </h2>
+
+              {/* AI verification verdict */}
+              {delivery.ai_verified != null && (
+                <div
+                  className={`mb-4 rounded-lg border p-4 ${
+                    delivery.ai_verified
+                      ? "border-blue-100 bg-blue-50"
+                      : "border-amber-100 bg-amber-50"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                        delivery.ai_verified ? "bg-blue-100" : "bg-amber-100"
+                      }`}
+                    >
+                      <ShieldCheck className={`h-4 w-4 ${delivery.ai_verified ? "text-blue-600" : "text-amber-600"}`} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className={`text-sm font-bold ${delivery.ai_verified ? "text-blue-900" : "text-amber-900"}`}>
+                        {delivery.ai_verified ? "AI photo verification — passed" : "AI photo verification — flagged"}
+                        {delivery.ai_confidence ? (
+                          <span className="ml-2 rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                            {Math.round(delivery.ai_confidence * 100)}% confidence
+                          </span>
+                        ) : null}
+                      </p>
+                      {delivery.ai_reason && (
+                        <p className="mt-1 text-xs leading-relaxed text-slate-600">{delivery.ai_reason}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="grid gap-4 sm:grid-cols-2">
                 {delivery.photo_url && (
                   <div>
@@ -185,25 +234,29 @@ export default async function DeliveryDetails({ params }: any) {
                     />
                   </div>
                 )}
-                {delivery.signature_data && (
-                  <div>
-                    <p className="text-xs text-slate-400 mb-2">Customer Signature</p>
-                    <div className="rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-3 flex items-center justify-center">
-                      <img
-                        src={delivery.signature_data}
-                        alt="Signature"
-                        className="max-h-24 object-contain"
-                      />
-                    </div>
+                <div>
+                  <p className="text-xs text-slate-400 mb-2">Confirmation</p>
+                  <div className="rounded-lg border border-green-100 bg-green-50 p-3 text-center h-full flex flex-col items-center justify-center">
+                    <CheckCircle className="h-7 w-7 text-green-500" />
+                    <p className="mt-1.5 text-sm font-medium text-slate-800">Confirmed by driver</p>
+                    {delivery.completed_at && (
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {new Date(delivery.completed_at).toLocaleString()}
+                      </p>
+                    )}
+                    {delivery.delivery_lat != null && delivery.delivery_lng != null && (
+                      <a
+                        href={`https://www.google.com/maps?q=${delivery.delivery_lat},${delivery.delivery_lng}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1.5 text-xs text-[#1e40af] hover:underline"
+                      >
+                        📍 GPS: {delivery.delivery_lat.toFixed(4)}, {delivery.delivery_lng.toFixed(4)}
+                      </a>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
-              {delivery.completed_at && (
-                <p className="mt-3 text-xs text-slate-500 flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5" />
-                  Completed at {new Date(delivery.completed_at).toLocaleString()}
-                </p>
-              )}
             </div>
           )}
         </div>
@@ -219,17 +272,33 @@ export default async function DeliveryDetails({ params }: any) {
                   <div className="h-2 w-2 rounded-full bg-blue-500" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Delivery Created</p>
+                  <p className="text-sm font-medium text-slate-900">Delivery Created · driver notified</p>
                   <p className="text-xs text-slate-400">{new Date(delivery.created_at).toLocaleString()}</p>
                 </div>
               </div>
+              {delivery.status === "completed" && delivery.photo_url && (
+                <div className="flex items-start gap-3">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 mt-0.5">
+                    <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">
+                      Photo captured · AI verification {delivery.ai_verified === false ? "flagged" : "passed"}
+                      {delivery.ai_confidence ? ` (${Math.round(delivery.ai_confidence * 100)}%)` : ""}
+                    </p>
+                    {delivery.ai_verified_at && (
+                      <p className="text-xs text-slate-400">{new Date(delivery.ai_verified_at).toLocaleString()}</p>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className={`flex items-start gap-3 ${delivery.status === "pending" ? "opacity-40" : ""}`}>
                 <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full mt-0.5 ${delivery.status !== "pending" ? "bg-green-100" : "bg-slate-100"}`}>
                   <div className={`h-2 w-2 rounded-full ${delivery.status !== "pending" ? "bg-green-500" : "bg-slate-300"}`} />
                 </div>
                 <div>
                   <p className="text-sm font-medium text-slate-900">
-                    {delivery.status === "completed" ? "Delivery Completed" : delivery.status === "failed" ? "Delivery Failed" : "Awaiting Completion"}
+                    {delivery.status === "completed" ? "Delivery Completed · customer notified" : delivery.status === "failed" ? "Delivery Failed" : "Awaiting Completion"}
                   </p>
                   {delivery.completed_at && (
                     <p className="text-xs text-slate-400">{new Date(delivery.completed_at).toLocaleString()}</p>
@@ -270,16 +339,38 @@ export default async function DeliveryDetails({ params }: any) {
             )}
           </div>
 
-          {/* Driver link */}
+          {/* Driver link + message preview */}
           {delivery.status === "pending" && (
-            <div className="rounded-xl border border-blue-100 bg-blue-50 p-5">
-              <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">Driver Link</p>
-              <p className="text-xs text-blue-600 break-all font-mono">
-                {typeof window !== "undefined" ? window.location.origin : ""}/driver/{delivery.driver_link_token}
+            <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-5">
+              <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-3">
+                Driver instructions — message sent
               </p>
-              <p className="mt-2 text-xs text-blue-500">Share this link with the driver via SMS or WhatsApp</p>
+              {/* WhatsApp-style preview of what the driver received */}
+              <div className="rounded-xl bg-[#dcf8c6] border border-[#c6ebab] p-3 shadow-sm">
+                <div className="flex items-center gap-1.5 text-[10px] font-medium text-green-800 mb-1.5">
+                  <Smartphone className="h-3 w-3" />
+                  Driver message · WhatsApp / SMS
+                </div>
+                <pre className="whitespace-pre-wrap text-xs leading-relaxed text-slate-800 font-sans">
+                  {driverMessage.split(driverLink).length > 1 ? (
+                    <>
+                      {driverMessage.split(driverLink)[0]}
+                      <span className="text-blue-700 underline break-all">{driverLink}</span>
+                      {driverMessage.split(driverLink)[1]}
+                    </>
+                  ) : (
+                    driverMessage
+                  )}
+                </pre>
+              </div>
+              <div className="mt-4">
+                <DriverLinkActions token={delivery.driver_link_token} />
+              </div>
             </div>
           )}
+
+          {/* Notification outbox */}
+          <OutboxCard deliveryId={delivery.id} />
         </div>
       </div>
     </div>

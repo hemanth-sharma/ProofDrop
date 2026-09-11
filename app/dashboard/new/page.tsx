@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { MessageCircle, Send, User, Mail, CheckCircle, Shield, Users, Plus, X } from "lucide-react"
+import { MessageCircle, Send, User, Mail, CheckCircle, Shield, Users, Plus, X, Package, Smartphone, Copy } from "lucide-react"
 import { Logo } from "@/components/landing/Logo"
 
 // Toast notification component
@@ -36,11 +36,14 @@ export default function NewDeliveryPage() {
   const [countryCode, setCountryCode] = useState("+1")
   const [customerPhone, setCustomerPhone] = useState("")
   const [customerEmail, setCustomerEmail] = useState("")
+  const [productName, setProductName] = useState("")
   const [deliveryNotes, setDeliveryNotes] = useState("")
   const [deliveryAddress, setDeliveryAddress] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [createdLink, setCreatedLink] = useState<string | null>(null)
+  const [linkCopied, setLinkCopied] = useState(false)
 
   useEffect(() => {
     fetch("/api/drivers")
@@ -53,6 +56,7 @@ export default function NewDeliveryPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setCreatedLink(null)
     const fullPhone = `${countryCode}${customerPhone.replace(/\D/g, "")}`
     const selectedDriver = drivers.find((d) => d.id === selectedDriverId)
     const res = await fetch("/api/deliveries", {
@@ -66,7 +70,7 @@ export default function NewDeliveryPage() {
         delivery_address: deliveryAddress || undefined,
         driver_id: selectedDriver?.id,
         driver_phone: selectedDriver?.phone,
-        product_name: "Default Product",
+        product_name: productName || undefined,
       }),
     })
     const data = await res.json().catch(() => ({}))
@@ -76,14 +80,21 @@ export default function NewDeliveryPage() {
       return
     }
 
-    // Show toast then redirect
+    // Show success + the driver link (demo-friendly: test the flow yourself)
     const driverName = selectedDriver?.full_name || selectedDriver?.phone || "driver"
-    setToast(`✓ Delivery link sent to ${driverName} via SMS`)
-    
-    setTimeout(() => {
-      router.push("/dashboard")
-      router.refresh()
-    }, 1500)
+    setToast(`✓ Delivery link sent to ${driverName}`)
+    if (data.driver_link) setCreatedLink(data.driver_link)
+  }
+
+  async function copyLink() {
+    if (!createdLink) return
+    try {
+      await navigator.clipboard.writeText(createdLink)
+    } catch {
+      /* clipboard unavailable */
+    }
+    setLinkCopied(true)
+    setTimeout(() => setLinkCopied(false), 2000)
   }
 
   return (
@@ -164,6 +175,23 @@ export default function NewDeliveryPage() {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="product_name">
+                  Item / Order <span className="text-slate-400 font-normal">(Optional)</span>
+                </Label>
+                <div className="relative">
+                  <Package className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    id="product_name"
+                    type="text"
+                    value={productName}
+                    onChange={(e) => setProductName(e.target.value)}
+                    placeholder="e.g. Spring Sunrise Bouquet"
+                    className="w-full rounded-lg border border-slate-200 py-2.5 pl-10 pr-4 text-sm focus:border-[#1e40af] focus:outline-none focus:ring-1 focus:ring-[#1e40af]"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="customer_phone">
                   Phone Number <span className="text-[#1e40af]">Required</span>
                 </Label>
@@ -238,7 +266,7 @@ export default function NewDeliveryPage() {
 
               <div className="flex items-center gap-2 text-sm text-slate-600 rounded-lg bg-slate-50 border border-slate-200 px-3 py-2.5">
                 <MessageCircle className="h-4 w-4 shrink-0 text-slate-400" />
-                Driver will receive a capture link via SMS
+                Driver gets the capture link via SMS / WhatsApp + email
               </div>
 
               {error && (
@@ -254,6 +282,51 @@ export default function NewDeliveryPage() {
                 {loading ? "Sending…" : "Send Link to Driver"}
               </Button>
             </form>
+
+            {/* Success panel with the driver link (demo-friendly) */}
+            {createdLink && (
+              <div className="mt-5 rounded-xl border border-green-200 bg-green-50/70 p-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-100">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-green-900">Driver link is out! 🚚</p>
+                    <p className="mt-0.5 text-xs text-green-800 leading-relaxed">
+                      In production the driver opens it from their SMS / WhatsApp. Want to try the flow yourself?
+                      Open the driver view, snap a photo and watch the AI check it.
+                    </p>
+                    <div className="mt-2.5 flex flex-wrap gap-2">
+                      <a
+                        href={createdLink.replace(/^https?:\/\/[^/]+/, "")}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-green-700 transition-colors"
+                      >
+                        <Smartphone className="h-3.5 w-3.5" />
+                        Open driver view →
+                      </a>
+                      <button
+                        onClick={copyLink}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-green-200 bg-white px-3.5 py-2 text-xs font-semibold text-green-700 hover:bg-green-50 transition-colors"
+                      >
+                        {linkCopied ? <CheckCircle className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                        {linkCopied ? "Copied!" : "Copy link"}
+                      </button>
+                      <button
+                        onClick={() => {
+                          router.push("/dashboard")
+                          router.refresh()
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+                      >
+                        Go to dashboard →
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Feature highlight cards */}

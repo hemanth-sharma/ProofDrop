@@ -5,7 +5,7 @@ import Link from "next/link"
 import { formatTime } from "@/lib/utils"
 import {
   Search, Filter, ChevronRight, User, Plus, X,
-  Package, TrendingUp, Zap
+  Package, TrendingUp, Zap, ShieldCheck, Sparkles, Loader2
 } from "lucide-react"
 
 interface Delivery {
@@ -14,9 +14,12 @@ interface Delivery {
   customer_phone: string
   status: string
   created_at: string
+  completed_at?: string | null
   driver_phone?: string
   driver_id?: string
   delivery_address?: string
+  ai_verified?: boolean | null
+  ai_confidence?: number | null
 }
 
 export default function DashboardPage() {
@@ -28,10 +31,11 @@ export default function DashboardPage() {
   const [filterDateFrom, setFilterDateFrom] = useState("")
   const [filterDateTo, setFilterDateTo] = useState("")
   const [showFilter, setShowFilter] = useState(false)
+  const [seeding, setSeeding] = useState(false)
   const filterRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    fetch("/api/deliveries")
+  function loadDeliveries() {
+    return fetch("/api/deliveries")
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -43,7 +47,25 @@ export default function DashboardPage() {
         }
       })
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadDeliveries()
   }, [])
+
+  async function loadDemoData() {
+    setSeeding(true)
+    try {
+      await fetch("/api/demo/seed", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "seed" }),
+      })
+      await loadDeliveries()
+    } finally {
+      setSeeding(false)
+    }
+  }
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -78,6 +100,22 @@ export default function DashboardPage() {
   const pendingCount = deliveries.filter((d) => d.status === "pending").length
   const activeFilters = [filterStatus, filterDriver, filterDateFrom, filterDateTo].filter(Boolean).length
 
+  // Real KPIs computed from actual data
+  const completionRate = deliveries.length ? (completedCount / deliveries.length) * 100 : 0
+  const durationsHrs = deliveries
+    .filter((d) => d.status === "completed" && d.completed_at)
+    .map((d) => new Date(d.completed_at as string).getTime() - new Date(d.created_at).getTime())
+  const avgCompletionHrs = durationsHrs.length
+    ? durationsHrs.reduce((a, b) => a + b, 0) / durationsHrs.length / 3600000
+    : NaN
+  const aiVerifiedCount = deliveries.filter((d) => d.ai_verified === true).length
+
+  const avgCompletionLabel = !isFinite(avgCompletionHrs)
+    ? "—"
+    : avgCompletionHrs < 1
+      ? `${Math.round(avgCompletionHrs * 60)} min`
+      : `${avgCompletionHrs.toFixed(1)} hrs`
+
   function clearFilters() {
     setFilterStatus("pending")
     setFilterDriver("")
@@ -111,7 +149,7 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* KPI cards — compact horizontal row on all screen sizes */}
+      {/* KPI cards — real numbers computed from your deliveries */}
       <div className="mt-4 grid grid-cols-3 gap-2 lg:gap-4">
         <div className="rounded-xl border border-slate-200 bg-white p-3 lg:p-5 shadow-sm">
           <div className="flex flex-col gap-1 lg:flex-row lg:items-center lg:gap-3">
@@ -120,7 +158,7 @@ export default function DashboardPage() {
             </div>
             <div>
               <p className="text-[10px] lg:text-sm text-slate-500 leading-tight">Avg. Completion</p>
-              <p className="text-base lg:text-xl font-bold text-slate-900">54 sec</p>
+              <p className="text-base lg:text-xl font-bold text-slate-900">{avgCompletionLabel}</p>
             </div>
           </div>
         </div>
@@ -131,22 +169,50 @@ export default function DashboardPage() {
             </div>
             <div>
               <p className="text-[10px] lg:text-sm text-slate-500 leading-tight">Success Rate</p>
-              <p className="text-base lg:text-xl font-bold text-green-600">99.2%</p>
+              <p className="text-base lg:text-xl font-bold text-green-600">{completionRate.toFixed(1)}%</p>
             </div>
           </div>
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-3 lg:p-5 shadow-sm">
           <div className="flex flex-col gap-1 lg:flex-row lg:items-center lg:gap-3">
-            <div className="hidden lg:flex h-10 w-10 items-center justify-center rounded-lg bg-purple-50">
-              <Package className="h-5 w-5 text-purple-600" />
+            <div className="hidden lg:flex h-10 w-10 items-center justify-center rounded-lg bg-violet-50">
+              <ShieldCheck className="h-5 w-5 text-violet-600" />
             </div>
             <div>
-              <p className="text-[10px] lg:text-sm text-slate-500 leading-tight">Total Volume</p>
-              <p className="text-base lg:text-xl font-bold text-slate-900">{deliveries.length}</p>
+              <p className="text-[10px] lg:text-sm text-slate-500 leading-tight">AI-Verified Proofs</p>
+              <p className="text-base lg:text-xl font-bold text-slate-900">{aiVerifiedCount}</p>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Demo data empty state */}
+      {!loading && deliveries.length === 0 && (
+        <div className="mt-4 rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-5 lg:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#1e40af] text-white">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900">New here? Load demo data</h3>
+                <p className="mt-0.5 text-sm text-slate-600 max-w-md">
+                  Get 30 days of realistic deliveries — drivers, customers, AI-verified photo proofs and a
+                  notification outbox — to explore every feature in one click.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={loadDemoData}
+              disabled={seeding}
+              className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-[#1e40af] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#1d4ed8] transition-colors disabled:opacity-60"
+            >
+              {seeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {seeding ? "Loading demo data…" : "Load Demo Data"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Table card */}
       <div className="mt-4 lg:mt-6 rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -366,6 +432,12 @@ export default function DashboardPage() {
                         <span className="h-1.5 w-1.5 rounded-full bg-current hidden sm:block" />
                         {d.status === "completed" ? "Done" : d.status === "failed" ? "Failed" : "Pending"}
                       </span>
+                      {d.ai_verified && (
+                        <span className="ml-1 lg:ml-1.5 inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
+                          <ShieldCheck className="h-2.5 w-2.5" />
+                          AI
+                        </span>
+                      )}
                     </td>
                     <td className="hidden md:table-cell px-4 py-3 text-slate-500 text-xs">{formatTime(d.created_at)}</td>
                     <td className="hidden md:table-cell px-4 py-3">
