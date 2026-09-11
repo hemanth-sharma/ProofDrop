@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { nanoid } from "nanoid"
-import { sendDriverSMS } from "@/lib/sms"
+import { notifyDriver } from "@/lib/notify"
 
 export async function GET() {
   const supabase = await createClient()
@@ -31,7 +31,6 @@ export async function POST(req: NextRequest) {
   // if (authError || !user) {
   //   return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   // }
-  console.log("user", user)
   const userId = user?.id ?? process.env.TEST_USER_ID
   if (!userId) {
     return NextResponse.json(
@@ -39,7 +38,7 @@ export async function POST(req: NextRequest) {
       { status: 401 }
     )
   }
-  
+
   const body = await req.json()
 
   const {
@@ -110,7 +109,26 @@ export async function POST(req: NextRequest) {
   */
 
   const driver_link_token = nanoid(24)
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    `${req.nextUrl.protocol}//${req.nextUrl.host}` ||
+    "http://localhost:3000"
+
+  // Resolve driver details (phone / email) when a driver record is assigned
+  let resolvedDriverPhone = driver_phone || null
+  let resolvedDriverEmail: string | null = null
+  if (driver_id) {
+    const { data: driverRow } = await supabase
+      .from("drivers")
+      .select("phone, email")
+      .eq("id", driver_id)
+      .eq("user_id", userId)
+      .maybeSingle()
+    if (driverRow) {
+      resolvedDriverPhone = resolvedDriverPhone || driverRow.phone
+      resolvedDriverEmail = driverRow.email || null
+    }
+  }
 
   const { data: delivery, error } = await supabase
     .from("deliveries")
@@ -124,8 +142,8 @@ export async function POST(req: NextRequest) {
       delivery_address: delivery_address || null,
       driver_id: driver_id || null,
       driver_link_token,
-      driver_phone: driver_phone || null,
-      product_name: product_name,
+      driver_phone: resolvedDriverPhone,
+      product_name: product_name || null,
       status: "pending",
     })
     .select()
@@ -137,7 +155,10 @@ export async function POST(req: NextRequest) {
 
   /*
   ============================================
-  3️⃣  SEND SMS
+  3️⃣  NOTIFY THE DRIVER (SMS / WhatsApp / email)
+      — message is logged to the notifications
+        table even when providers are not set
+        (demo mode), so nothing is silently lost.
   ============================================
   */
 
@@ -145,15 +166,21 @@ export async function POST(req: NextRequest) {
 
   console.log("Driver link: ", driverLink)
 
-  const smsError = await sendDriverSMS({
-    customer_name: delivery.customer_name,
-    customer_phone: delivery.customer_phone,
-    driver_link: driverLink,
-  })
-
-  if (smsError) {
-    console.error("SMS send failed:", smsError)
+  let notifications: Awaited<ReturnType<typeof notifyDriver>> = []
+  try {
+    notifications = await notifyDriver(
+      { ...delivery, driver_phone: resolvedDriverPhone },
+      driverLink,
+      resolvedDriverEmail
+    )
+  } catch (err) {
+    // Notifications must never block delivery creation
+    console.error("Driver notification failed:", err)
   }
 
-  return NextResponse.json(delivery)
+  return NextResponse.json({
+    ...delivery,
+    driver_link: driverLink,
+    notifications,
+  })
 }

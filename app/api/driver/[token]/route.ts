@@ -9,7 +9,7 @@ export async function GET(
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from("deliveries")
-    .select("id, customer_name, customer_phone, delivery_notes, delivery_address, status")
+    .select("id, customer_name, customer_phone, delivery_notes, delivery_address, product_name, driver_phone, status, ai_verified, ai_confidence, ai_reason")
     .eq("driver_link_token", token)
     .single()
   if (error || !data) {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/lib/supabase/admin"
-import { sendCustomerSMS } from "@/lib/sms"
+import { notifyCustomer } from "@/lib/notify"
 
 export async function POST(
   req: NextRequest,
@@ -20,8 +20,18 @@ export async function POST(
 
   const supabase = createAdminClient()
 
+  // Load the current row so we keep the AI verdict + photo from the upload step
+  const { data: current } = await supabase
+    .from("deliveries")
+    .select("id, photo_url, ai_verified, ai_confidence, ai_reason, ai_mode")
+    .eq("driver_link_token", token)
+    .single()
+  if (!current) {
+    return NextResponse.json({ error: "Delivery not found" }, { status: 404 })
+  }
+
   const updateData: any = {
-    photo_url: photo_url || null,
+    photo_url: photo_url || current.photo_url || null,
     signature_data,
     completed_at: new Date().toISOString(),
     status: "completed",
@@ -44,10 +54,12 @@ export async function POST(
     return NextResponse.json({ error: "Update failed" }, { status: 500 })
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL ||
+    `${req.nextUrl.protocol}//${req.nextUrl.host}` ||
+    "http://localhost:3000"
   const proofLink = `${baseUrl}/proof/${delivery.id}`
-  const admin = createAdminClient()
-  const { data: profile } = await admin
+  const { data: profile } = await supabase
     .from("profiles")
     .select("business_name")
     .eq("id", delivery.user_id)
@@ -55,15 +67,15 @@ export async function POST(
 
   const businessName = profile?.business_name || "Your merchant"
 
-  const smsErr = await sendCustomerSMS({
-    business_name: businessName,
-    customer_phone: delivery.customer_phone,
-    proof_link: proofLink,
-  })
-
-  if (smsErr) {
-    console.error("Customer SMS failed:", smsErr)
+  // Notify the customer (SMS / WhatsApp / email).
+  // Messages are logged to the notifications table even in demo mode
+  // (no provider keys), so the proof link is never silently lost.
+  let notifications: Awaited<ReturnType<typeof notifyCustomer>> = []
+  try {
+    notifications = await notifyCustomer(delivery, proofLink, businessName)
+  } catch (err) {
+    console.error("Customer notification failed:", err)
   }
 
-  return NextResponse.json(delivery)
+  return NextResponse.json({ ...delivery, proof_link: proofLink, notifications })
 }
