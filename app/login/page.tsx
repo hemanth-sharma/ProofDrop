@@ -101,9 +101,9 @@ export default function LoginPage() {
             <Sparkles className="mr-1 h-4 w-4" />
             Login with Demo User
           </Button>
-          <p className="mt-2 text-center text-[11px] text-slate-500 leading-relaxed">
+          {/* <p className="mt-2 text-center text-[11px] text-slate-500 leading-relaxed">
             Full walkthrough data included — deliveries, drivers, AI-verified proofs &amp; reports.
-          </p>
+          </p> */}
         </div>
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
