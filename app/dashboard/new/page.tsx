@@ -80,10 +80,16 @@ export default function NewDeliveryPage() {
       return
     }
 
-    // Show success + the driver link (demo-friendly: test the flow yourself)
+    // Show success + the driver link
     const driverName = selectedDriver?.full_name || selectedDriver?.phone || "driver"
     setToast(`✓ Delivery link sent to ${driverName}`)
-    if (data.driver_link) setCreatedLink(data.driver_link)
+    if (data.driver_link) {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+      const fullUrl = data.driver_link.startsWith("/") 
+        ? `${baseUrl}${data.driver_link}` 
+        : data.driver_link
+      setCreatedLink(fullUrl)
+    }
   }
 
   async function copyLink() {
@@ -283,7 +289,7 @@ export default function NewDeliveryPage() {
               </Button>
             </form>
 
-            {/* Success panel with the driver link (demo-friendly) */}
+            {/* Success panel with the driver link */}
             {createdLink && (
               <div className="mt-5 rounded-xl border border-green-200 bg-green-50/70 p-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                 <div className="flex items-start gap-3">
@@ -298,7 +304,7 @@ export default function NewDeliveryPage() {
                     </p>
                     <div className="mt-2.5 flex flex-wrap gap-2">
                       <a
-                        href={createdLink.replace(/^https?:\/\/[^/]+/, "")}
+                        href={createdLink}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center gap-1.5 rounded-lg bg-green-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-green-700 transition-colors"
