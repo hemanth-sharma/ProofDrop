@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Header } from "@/components/landing/Header"
 import { Footer } from "@/components/landing/Footer"
+import { DemoButton } from "@/components/landing/DemoButton" 
 import {
   Zap,
   Send,
@@ -40,25 +41,22 @@ export default function HomePage() {
             Send your driver a link. They snap a photo, our AI instantly verifies
             it shows the delivered item, and your customer gets the proof. That&apos;s it.
           </p>
+          
+          {/* Action Buttons */}
           <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            {/* 2. Shimmering Instant Live Demo Button */}
+            <DemoButton />
+
             <Link
               href="/signup"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1e40af] px-8 py-4 text-base font-semibold text-white shadow-sm transition-colors hover:bg-[#1d4ed8] sm:w-auto"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-8 py-4 text-base font-semibold text-slate-700 transition-colors hover:bg-slate-50 sm:w-auto"
             >
               Start Free Trial →
             </Link>
-            <Link
-              href="/login"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-8 py-4 text-base font-semibold text-slate-700 transition-colors hover:bg-slate-50 sm:w-auto"
-            >
-              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-400 bg-slate-50">
-                <Play className="ml-0.5 h-4 w-4 fill-slate-600 text-slate-600" />
-              </span>
-              Try the Live Demo
-            </Link>
           </div>
-          <p className="mt-4 text-sm text-slate-500">
-            Free for 14 days — No credit card required · Demo account pre-loaded with data
+          
+          <p className="mt-4 text-sm font-medium text-slate-500">
+            ⚡ 1-click live demo — No setup or account needed
           </p>
         </div>
 
@@ -433,17 +431,14 @@ export default function HomePage() {
             &ldquo;where&apos;s my package?&rdquo; calls forever.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            {/* 3. Replaced here as well */}
+            <DemoButton />
+
             <Link
               href="/signup"
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#1e40af] px-8 py-4 text-base font-semibold text-white transition-colors hover:bg-[#1d4ed8] sm:w-auto"
             >
               Start Free Trial →
-            </Link>
-            <Link
-              href="/login"
-              className="inline-flex w-full items-center justify-center rounded-xl border border-slate-500 bg-transparent px-8 py-4 text-base font-semibold text-white transition-colors hover:bg-slate-800 sm:w-auto"
-            >
-              Log In
             </Link>
           </div>
           <p className="mt-6 text-sm text-slate-400">
